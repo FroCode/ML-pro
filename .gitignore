@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Data & indexes (regenerated locally)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+chroma_db/
+
+# Model caches
+.cache/
+models/
+
+# Results (keep sample)
+results/*.json
+results/plots/*
+!results/.gitkeep
+!results/sample_metrics.json
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.pptx~
+~$*

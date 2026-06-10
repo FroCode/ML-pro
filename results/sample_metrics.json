@@ -1,0 +1,15 @@
+{
+  "note": "Sample evaluation on 1000-record MedQuAD subset (100 test questions). Regenerate with: python scripts/run_eval.py",
+  "dataset": {
+    "records": 1000,
+    "chunks": 1132,
+    "test_size": 100
+  },
+  "retrieval": {
+    "recall@5": 1.0,
+    "mrr": 0.975,
+    "retrieval_latency_mean_sec": 0.0189,
+    "retrieval_latency_p95_sec": 0.0239,
+    "n_samples": 100
+  }
+}
