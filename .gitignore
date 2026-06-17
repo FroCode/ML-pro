@@ -30,4 +30,8 @@ Thumbs.db
 .vscode/
 *.pptx~
 ~$*
-toda
+
+# Local docs / reports (not part of the app)
+report/
+*.docx
+today_live_demo.md

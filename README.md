@@ -46,7 +46,7 @@ python scripts/build_index.py --max-records 0      # full dataset (~47k pairs)
 ### 4. Run the demo
 
 ```bash
-streamlit run app/streamlit_app.py
+python -m streamlit run app/streamlit_app.py
 ```
 
 ### 5. Evaluate (numerical metrics)
@@ -75,8 +75,7 @@ ML-pro/
 │   └── run_eval.py           # Evaluation runner
 ├── data/                     # Raw & processed data (gitignored)
 ├── chroma_db/                # Vector index (gitignored)
-├── results/                  # metrics.json
-└── report/                   # Presentation materials
+└── results/                  # metrics.json
 ```
 
 ## Evaluation metrics
@@ -111,5 +110,3 @@ Edit `src/config.py` to change:
 - **Track:** Local LLM + RAG
 - **Domain:** Healthcare
 - **Deliverables:** Dataset sourcing, live demo, technical report, numerical evaluation
-
-Presentation slides: `report/MedAssist_Local_Premium_v2.pptx`
