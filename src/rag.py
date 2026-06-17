@@ -1,17 +1,25 @@
 """Retrieval-Augmented Generation pipeline."""
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass, field
 
 from src.config import (
     OLLAMA_MODEL,
+    RETRIEVAL_CANDIDATES,
     SIMILARITY_THRESHOLD,
     SYSTEM_PROMPT,
     TOP_K,
 )
 from src.embed_index import get_collection
 from src import ollama_client
+
+_STOPWORDS = frozenset(
+    "a an the is are was were be been being what how when where who which "
+    "do does did have has had can could would should will shall may might "
+    "of in on at to for with from by about into through and or not".split()
+)
 
 
 @dataclass
@@ -36,32 +44,55 @@ class RAGResponse:
     model: str = OLLAMA_MODEL
 
 
+def _query_terms(question: str) -> list[str]:
+    terms = [t for t in re.findall(r"[a-z0-9]+", question.lower()) if len(t) > 2]
+    return [t for t in terms if t not in _STOPWORDS]
+
+
+def _keyword_overlap(question: str, text: str) -> float:
+    terms = _query_terms(question)
+    if not terms:
+        return 0.0
+    text_l = text.lower()
+    hits = sum(1 for t in terms if t in text_l)
+    return hits / len(terms)
+
+
+def _combined_score(question: str, text: str, semantic: float) -> float:
+    kw = _keyword_overlap(question, text)
+    return 0.55 * semantic + 0.45 * kw
+
+
 def retrieve(question: str, top_k: int = TOP_K) -> list[RetrievedChunk]:
     collection = get_collection(reset=False)
-    result = collection.query(query_texts=[question], n_results=top_k)
-    chunks: list[RetrievedChunk] = []
+    n_candidates = max(top_k, RETRIEVAL_CANDIDATES)
+    result = collection.query(query_texts=[question], n_results=n_candidates)
     if not result["documents"] or not result["documents"][0]:
-        return chunks
+        return []
 
+    candidates: list[RetrievedChunk] = []
     for doc, meta, dist in zip(
         result["documents"][0],
         result["metadatas"][0],
         result["distances"][0],
     ):
-        score = 1.0 - float(dist)  # cosine distance → similarity
-        if score < SIMILARITY_THRESHOLD:
+        semantic = 1.0 - float(dist)
+        combined = _combined_score(question, doc, semantic)
+        if combined < SIMILARITY_THRESHOLD:
             continue
-        chunks.append(
+        candidates.append(
             RetrievedChunk(
                 text=doc,
                 doc_id=meta.get("doc_id", ""),
                 chunk_id=meta.get("chunk_id", ""),
-                score=round(score, 4),
+                score=round(combined, 4),
                 source=meta.get("source", ""),
                 question=meta.get("question", ""),
             )
         )
-    return chunks
+
+    candidates.sort(key=lambda c: c.score, reverse=True)
+    return candidates[:top_k]
 
 
 def _format_context(chunks: list[RetrievedChunk]) -> str:

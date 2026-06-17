@@ -15,6 +15,8 @@ from src.config import (
     CHUNKS_FILE,
     DATA_PROCESSED,
     DATA_RAW,
+    DEMO_DOCS_PER_PATTERN,
+    DEMO_TOPIC_PATTERNS,
     MAX_RECORDS,
     RANDOM_SEED,
     TEST_SIZE,
@@ -45,26 +47,56 @@ def _word_chunks(text: str, size: int, overlap: int) -> list[str]:
     return chunks
 
 
+def _select_demo_records(df: pd.DataFrame) -> pd.DataFrame:
+    """Always index presentation demo topics, even if outside the random sample."""
+    picked: list[pd.DataFrame] = []
+    for primary, secondary in DEMO_TOPIC_PATTERNS:
+        mask = (
+            df["question"].str.contains(primary, case=False, na=False)
+            | df["answer"].str.contains(primary, case=False, na=False)
+        )
+        if secondary:
+            mask &= (
+                df["question"].str.contains(secondary, case=False, na=False)
+                | df["answer"].str.contains(secondary, case=False, na=False)
+            )
+        hits = df[mask].head(DEMO_DOCS_PER_PATTERN)
+        if not hits.empty:
+            picked.append(hits)
+    if not picked:
+        return df.iloc[0:0]
+    return pd.concat(picked).drop_duplicates(subset=["question"]).reset_index(drop=True)
+
+
 def load_medquad(max_records: int = MAX_RECORDS) -> pd.DataFrame:
     DATA_RAW.mkdir(parents=True, exist_ok=True)
     cache = DATA_RAW / "medquad.parquet"
     if cache.exists():
-        df = pd.read_parquet(cache)
+        full = pd.read_parquet(cache)
     else:
         ds = load_dataset("lavita/MedQuAD", split="train")
-        df = ds.to_pandas()
-        df.to_parquet(cache, index=False)
+        full = ds.to_pandas()
+        full.to_parquet(cache, index=False)
 
-    df["question"] = df["question"].map(_clean)
-    df["answer"] = df["answer"].map(_clean)
-    if "source" not in df.columns:
-        df["source"] = ""
-    df["source"] = df["source"].astype(str).map(_clean)
-    df = df[df["answer"].str.len() > 20].reset_index(drop=True)
+    full["question"] = full["question"].map(_clean)
+    full["answer"] = full["answer"].map(_clean)
+    if "source" not in full.columns:
+        full["source"] = ""
+    full["source"] = full["source"].astype(str).map(_clean)
+    full = full[full["answer"].str.len() > 20].reset_index(drop=True)
+
+    demo = _select_demo_records(full)
+    demo_questions = set(demo["question"])
 
     if max_records and max_records > 0:
-        df = df.sample(n=min(max_records, len(df)), random_state=RANDOM_SEED).reset_index(drop=True)
+        pool = full[~full["question"].isin(demo_questions)]
+        n_sample = max(max_records - len(demo), 0)
+        sample = pool.sample(n=min(n_sample, len(pool)), random_state=RANDOM_SEED)
+        df = pd.concat([demo, sample], ignore_index=True)
+    else:
+        df = full
 
+    df = df.reset_index(drop=True)
     df["doc_id"] = [f"doc_{i}" for i in range(len(df))]
     return df
 

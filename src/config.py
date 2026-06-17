@@ -21,11 +21,21 @@ OLLAMA_TIMEOUT = 120.0
 
 # RAG
 TOP_K = 5
-SIMILARITY_THRESHOLD = 0.35
+RETRIEVAL_CANDIDATES = 20  # fetch extra, then re-rank
+SIMILARITY_THRESHOLD = 0.40
 CHUNK_SIZE = 400
 CHUNK_OVERLAP = 50
 MAX_NEW_TOKENS = 512
 TEMPERATURE = 0.1
+
+# Demo topics always included in the index (for live presentation)
+DEMO_TOPIC_PATTERNS: list[tuple[str, str | None]] = [
+    ("aspirin", "side effect"),
+    ("hypertension", None),
+    ("diabetes", "symptom"),
+    ("asthma", "diagnos"),
+]
+DEMO_DOCS_PER_PATTERN = 8
 
 # Ingest — use 0 for full MedQuAD (~47k pairs); default subset for fast local setup
 MAX_RECORDS = 3000
